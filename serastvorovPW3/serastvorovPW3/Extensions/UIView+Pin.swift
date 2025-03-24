@@ -171,6 +171,23 @@ extension UIView {
     func setWidth(mode: ConstraintMode = .equal, _ const: Double) -> NSLayoutConstraint {
         pinDimension(mode: mode, widthAnchor, constant: const)
     }
+    
+    // Метод для привязки всех сторон к супервью
+    func pinEdgesToSuperview() {
+        guard let superview = superview else {
+            print("Superview not found")
+            return
+        }
+        
+        translatesAutoresizingMaskIntoConstraints = false
+        
+        NSLayoutConstraint.activate([
+            topAnchor.constraint(equalTo: superview.topAnchor),
+            bottomAnchor.constraint(equalTo: superview.bottomAnchor),
+            leadingAnchor.constraint(equalTo: superview.leadingAnchor),
+            trailingAnchor.constraint(equalTo: superview.trailingAnchor)
+        ])
+    }
 
     // MARK: - Pin height
     @discardableResult

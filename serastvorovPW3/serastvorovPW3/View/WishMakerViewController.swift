@@ -34,23 +34,44 @@ final class WishMakerViewController: UIViewController {
         static let buttonSide: CGFloat = 20
         static let buttonRadius: CGFloat = 20
         static let buttonText: String = "My wishes"
-
+        
+        static let animationDuration: TimeInterval = 0.3
+        static let defaultColorComponent: Double = 0
     }
     
     // MARK: - Properties
-    private var colorModel = ColorModel(red: 0, green: 0, blue: 0)
+    private let viewModel = ColorViewModel()
     private let stack = UIStackView()
     private let titleLabel = UILabel()
     private let descriptionLabel = UILabel()
     private var addWishButton = UIButton(type: .system)
+    private var scheduleWishButton = UIButton(type: .system)
     private var toggleSlidersButton = UIButton(type: .system)
     private var areSlidersHidden = false
     
-    
+    // MARK: - Lifecycle
     override func viewDidLoad() {
         super.viewDidLoad()
+        setupBindings()
         configureUI()
-        updateUI()
+    }
+    
+    // MARK: - Setup
+    private func setupBindings() {
+        viewModel.onColorUpdate = { [weak self] color in
+            UIView.animate(withDuration: Constants.animationDuration) {
+                self?.view.backgroundColor = color
+                self?.updateButtonColors()
+            }
+        }
+        
+        viewModel.onTextColorUpdate = { [weak self] color in
+            UIView.animate(withDuration: Constants.animationDuration) {
+                self?.titleLabel.textColor = color
+                self?.descriptionLabel.textColor = color
+                self?.updateButtonColors()
+            }
+        }
     }
     
     // MARK: - configureUI aggregate of all UI setup functions
@@ -59,28 +80,10 @@ final class WishMakerViewController: UIViewController {
         configureTitle()
         configureDescription()
         configureAddWishButton()
+        configureScheduleWishButton()
         configureToggleSlidersButton()
-        
         configureSliders()
-        
-        updateUI()
         view.layoutIfNeeded()
-    }
-    
-    // MARK: - Update background color based on sliders
-    private func updateBackgroundColor() {
-        view.backgroundColor = colorModel.makeColor()
-    }
-    
-    private func updateTextColor() {
-        let invertColor = colorModel.invertedColor()
-        titleLabel.textColor = invertColor
-        descriptionLabel.textColor = invertColor
-    }
-    
-    private func updateUI() {
-        updateBackgroundColor()
-        updateTextColor()
     }
     
     // MARK: - Configure titleLabel
@@ -114,28 +117,40 @@ final class WishMakerViewController: UIViewController {
         stack.clipsToBounds = true
         view.addSubview(stack)
         
+        let currentColor = viewModel.getCurrentColor()
+        guard let components = currentColor.components else { return }
+        
         let sliderRed = createColorSlider(title: Constants.red) { [weak self] value in
-            self?.colorModel.red = value
-            self?.updateUI()
+            self?.viewModel.updateColor(
+                red: value,
+                green: Double(components.green),
+                blue: Double(components.blue)
+            )
         }
+        
         let sliderGreen = createColorSlider(title: Constants.green) { [weak self] value in
-            self?.colorModel.green = value
-            self?.updateUI()
+            self?.viewModel.updateColor(
+                red: Double(components.red),
+                green: value,
+                blue: Double(components.blue)
+            )
         }
+        
         let sliderBlue = createColorSlider(title: Constants.blue) { [weak self] value in
-            self?.colorModel.blue = value
-            self?.updateUI()
+            self?.viewModel.updateColor(
+                red: Double(components.red),
+                green: Double(components.green),
+                blue: value
+            )
         }
         
         [sliderRed, sliderGreen, sliderBlue].forEach(stack.addArrangedSubview)
         
-
         stack.pinLeft(to: view, Constants.stackLeading)
         stack.pinRight(to: view, Constants.stackLeading)
         stack.pinBottom(to: toggleSlidersButton.topAnchor, 10)
     }
-
-
+    
     // MARK: - Configure toggleSlidersButton
     private func configureToggleSlidersButton() {
         view.addSubview(toggleSlidersButton)
@@ -150,45 +165,92 @@ final class WishMakerViewController: UIViewController {
         
         toggleSlidersButton.addTarget(self, action: #selector(toggleSliders), for: .touchUpInside)
     }
-
+    
     // MARK: - Toggle Sliders Visibility
     @objc private func toggleSliders() {
         areSlidersHidden.toggle()
-        stack.isHidden = areSlidersHidden
+        UIView.animate(withDuration: Constants.animationDuration) {
+            self.stack.alpha = self.areSlidersHidden ? 0 : 1
+        } completion: { _ in
+            self.stack.isHidden = self.areSlidersHidden
+        }
         toggleSlidersButton.setTitle(areSlidersHidden ? "Show Sliders" : "Hide Sliders", for: .normal)
     }
     
     private func configureAddWishButton() {
         view.addSubview(addWishButton)
-
+        
         addWishButton.setHeight(Constants.buttonHeight)
-
         addWishButton.pinBottom(to: view.safeAreaLayoutGuide.bottomAnchor, Constants.buttonBottom)
         addWishButton.pinHorizontal(to: view, Constants.buttonSide)
-
+        
         addWishButton.backgroundColor = .white
         addWishButton.setTitleColor(.systemPink, for: .normal)
         addWishButton.setTitle(Constants.buttonText, for: .normal)
-
+        
         addWishButton.layer.cornerRadius = Constants.buttonRadius
         addWishButton.addTarget(self, action: #selector(addWishButtonPressed), for: .touchUpInside)
     }
-
+    
+    private func configureScheduleWishButton() {
+        view.addSubview(scheduleWishButton)
+        
+        scheduleWishButton.setHeight(Constants.buttonHeight)
+        scheduleWishButton.pinBottom(to: addWishButton.topAnchor, 10)
+        scheduleWishButton.pinHorizontal(to: view, Constants.buttonSide)
+        
+        scheduleWishButton.backgroundColor = .white
+        scheduleWishButton.setTitleColor(.systemPink, for: .normal)
+        scheduleWishButton.setTitle("Schedule Wish", for: .normal)
+        
+        scheduleWishButton.layer.cornerRadius = Constants.buttonRadius
+        scheduleWishButton.addTarget(self, action: #selector(scheduleWishButtonPressed), for: .touchUpInside)
+    }
     
     @objc
     private func addWishButtonPressed() {
-        let wishVC = WishStoringViewController()
-        present(wishVC, animated: true)
+        let wishStoringVC = WishStoringViewController()
+        wishStoringVC.view.backgroundColor = viewModel.getCurrentColor()
+        navigationController?.pushViewController(wishStoringVC, animated: true)
     }
-
+    
+    @objc
+    private func scheduleWishButtonPressed() {
+        let calendarVC = WishCalendarViewController()
+        calendarVC.view.backgroundColor = viewModel.getCurrentColor()
+        navigationController?.pushViewController(calendarVC, animated: true)
+    }
+    
+    private func updateButtonColors() {
+        if let backgroundColor = view.backgroundColor {
+            let textColor = backgroundColor.isDark ? UIColor.white : UIColor.black
+            
+            // Update navigation bar title color
+            navigationController?.navigationBar.titleTextAttributes = [.foregroundColor: textColor]
+            
+            // Update buttons with contrast check
+            let buttons = [addWishButton, scheduleWishButton, toggleSlidersButton]
+            buttons.forEach { button in
+                // If button background is white, use contrasting text color
+                if button.backgroundColor == UIColor.white {
+                    button.setTitleColor(.black, for: .normal)
+                } else {
+                    // For other button colors, use the calculated text color
+                    button.setTitleColor(textColor, for: .normal)
+                }
+            }
+        }
+    }
     
     private func createColorSlider(title: String, valueChanged: @escaping (Double) -> Void) -> CustomSlider {
         let slider = CustomSlider(title: title, min: Constants.sliderMin, max: Constants.sliderMax)
         slider.valueChanged = valueChanged
         return slider
     }
-    
-    // MARK: - CustomSlider
+}
+
+// MARK: - CustomSlider
+extension WishMakerViewController {
     final class CustomSlider: UIView {
         var valueChanged: ((Double) -> Void)?
         
@@ -224,7 +286,6 @@ final class WishMakerViewController: UIViewController {
             slider.pinLeft(to: self.leadingAnchor, Constants.constraintLeading)
             slider.pinBottom(to: bottomAnchor, Constants.constraintTop)
         }
-
         
         @objc
         private func sliderValueChanged() {

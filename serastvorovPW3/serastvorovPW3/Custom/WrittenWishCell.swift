@@ -4,7 +4,6 @@
 //
 //  Created by Сергей Растворов on 11/6/24.
 //
-
 import UIKit
 
 final class WrittenWishCell: UITableViewCell {
@@ -21,6 +20,10 @@ final class WrittenWishCell: UITableViewCell {
         static let wishLabelOffset: CGFloat = 10
         static let wishLabelFontSize: CGFloat = 16
         static let wishLabelColor: UIColor = .label
+        static let dateLabelFontSize: CGFloat = 14
+        static let dateLabelColor: UIColor = .gray
+        static let dateLabelSpacing: CGFloat = 5
+        static let dateLabelBottomOffset: CGFloat = 8
     }
     
     private let wishLabel: UILabel = {
@@ -29,6 +32,23 @@ final class WrittenWishCell: UITableViewCell {
         label.textColor = Constants.wishLabelColor
         label.numberOfLines = 0
         label.textAlignment = .center
+        label.translatesAutoresizingMaskIntoConstraints = false
+        return label
+    }()
+    
+    // Date labels are now internal (default access level)
+    let startDateLabel: UILabel = {
+        let label = UILabel()
+        label.font = UIFont.systemFont(ofSize: Constants.dateLabelFontSize)
+        label.textColor = Constants.dateLabelColor
+        label.translatesAutoresizingMaskIntoConstraints = false
+        return label
+    }()
+    
+    let endDateLabel: UILabel = {
+        let label = UILabel()
+        label.font = UIFont.systemFont(ofSize: Constants.dateLabelFontSize)
+        label.textColor = Constants.dateLabelColor
         label.translatesAutoresizingMaskIntoConstraints = false
         return label
     }()
@@ -43,8 +63,15 @@ final class WrittenWishCell: UITableViewCell {
         fatalError("init(coder:) has not been implemented")
     }
     
-    func configure(with wish: String) {
-        wishLabel.text = wish
+    func configure(with wish: WishEventModel) {
+        wishLabel.text = wish.title
+        
+        let formatter = DateFormatter()
+        formatter.dateStyle = .short
+        formatter.timeStyle = .none
+        
+        startDateLabel.text = "Start: \(formatter.string(from: wish.startDate))"
+        endDateLabel.text = "End: \(formatter.string(from: wish.endDate))"
     }
     
     private func configureUI() {
@@ -62,12 +89,26 @@ final class WrittenWishCell: UITableViewCell {
         
         addSubview(wrap)
         wrap.addSubview(wishLabel)
+        wrap.addSubview(startDateLabel)
+        wrap.addSubview(endDateLabel)
         
         // Constraints for wrap view
         wrap.pinVertical(to: self, Constants.wrapOffsetV)
         wrap.pinHorizontal(to: self, Constants.wrapOffsetH)
         
         // Constraints for wish label inside the wrap view
-        wishLabel.pin(to: wrap, Constants.wishLabelOffset)
+        wishLabel.pinTop(to: wrap, Constants.wishLabelOffset)
+        wishLabel.pinLeft(to: wrap, Constants.wishLabelOffset)
+        wishLabel.pinRight(to: wrap, Constants.wishLabelOffset)
+        
+        // Constraints for date labels
+        startDateLabel.pinBottom(to: wrap, Constants.dateLabelBottomOffset)
+        startDateLabel.pinLeft(to: wrap, Constants.wishLabelOffset)
+        
+        endDateLabel.pinBottom(to: wrap, Constants.dateLabelBottomOffset)
+        endDateLabel.pinRight(to: wrap, Constants.wishLabelOffset)
+        
+        // Add spacing between wish label and date labels
+        wishLabel.pinBottom(to: startDateLabel.topAnchor, Constants.dateLabelSpacing)
     }
 }
